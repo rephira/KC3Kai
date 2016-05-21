@@ -47,6 +47,7 @@
 			});
 			var toNextFunc = function(){
 				if(!!$(this).data("asid")){
+					self.scrollShipListTop( $(this).data("asid") );
 					KC3StrategyTabs.gotoTab(null, $(this).data("asid") );
 				}
 			};
@@ -59,6 +60,7 @@
 				$(".ship_info .after_ship").hide();
 			}
 			var toFromFunc = function(){
+				self.scrollShipListTop($(this).data("sid"));
 				KC3StrategyTabs.gotoTab(null, $(this).data("sid"));
 			};
 			var toggleSrcFunc = function(){
@@ -200,11 +202,7 @@
 			}
 
 			// Scroll list top to selected ship
-			setTimeout(function(){
-				var listItem = $(".ship_list .ship_entity#{0}".format($(".ship_info .ship_name").data("id")));
-				var scrollTop = listItem.length === 1 ? listItem.offset().top - $(".ship_list").offset().top : 0;
-				$(".ship_list").scrollTop(scrollTop);
-			}, 200);
+			setTimeout(function(){self.scrollShipListTop();}, 0);
 		},
 		update: function(pageParams) {
 			if(!!pageParams[1]){
@@ -213,6 +211,17 @@
 				this.showVoiceDetail();
 			}
 			return true;
+		},
+		scrollShipListTop: function(shipId) {
+			var shipList = $(".ship_list");
+			var shipItem = $(".ship_list .ship_entity#{0}"
+				.format(shipId || $(".ship_info .ship_name").data("id"))
+			);
+			var scrollTop = shipItem.length === 1 ?
+				(shipItem.offset().top
+				 + shipList.scrollTop()
+				 - shipList.offset().top) : 0;
+			shipList.scrollTop(scrollTop);
 		}
 	};
 })();
