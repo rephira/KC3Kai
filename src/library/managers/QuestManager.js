@@ -17,7 +17,7 @@ Uses KC3Quest objects to play around with
 		timeToResetWeeklyQuests: -1,
 		timeToResetMonthlyQuests: -1,
 		
-		sharedCounterQuests: [ [218, 212] ],
+		sharedCounterQuests: [ [218, 212], [230, 228], [286, 261] ],
 		
 		// Internal constants for time period quests
 		_dailyIds: [201, 216, 210, 211, 218, 212, 226, 230, 303, 304, 402, 403, 503, 504, 605, 606, 607, 608, 609, 619, 702],
