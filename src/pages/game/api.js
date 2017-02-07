@@ -21,6 +21,31 @@ var autoFocus = 0;
 var critAnim = false;
 var taihaStatus = false;
 
+// Screenshot status
+var isTakingScreenshot = false;
+var suspendedTaiha = false;
+
+// Overlay avoids cursor
+var subtitlePosition = "bottom";
+
+// Overlay for map markers
+var markersOverlayTimer = false;
+
+// Idle time check
+/*
+  variables explanation:
+  longestIdleTime - high score of idle time
+  idleTimer       - timer ID for interval function of idleFunction
+  idleTimeout     - timer ID for unsafe idle time marker
+  idleFunction    - function that indicates the way of the idle counter
+*/
+localStorage.longestIdleTime = Math.max(localStorage.longestIdleTime || 0,1800000);
+var
+	lastRequestMark = Date.now(),
+	idleTimer,
+	idleTimeout,
+	idleFunction;
+
 // Show game screens
 function ActivateGame(){
 	waiting = false;
@@ -34,6 +59,10 @@ function ActivateGame(){
 		.end()
 		.show();
 	$(".box-wrap").css("zoom", ((ConfigManager.api_gameScale || 100) / 100));
+	idleTimer = setInterval(idleFunction, 1000);
+	if(ConfigManager.alert_idle_counter) {
+		$(".game-idle-timer").trigger("refresh-tick");
+	}
 	return true;
 }
 
@@ -65,6 +94,38 @@ $(document).on("ready", function(){
 		$(".overlay_subtitles").css("font-size", ConfigManager.subtitle_size);
 		if(ConfigManager.subtitle_bold){
 			$(".overlay_subtitles").css("font-weight", "bold");
+		}
+		
+		switch (ConfigManager.subtitle_display) {
+			case "bottom":
+				$(".overlay_subtitles span").css("pointer-events", "none");
+				break;
+			case "below":
+				$(".overlay_subtitles").appendTo("body");
+				$(".overlay_subtitles").css({
+					position: "relative",
+					margin: "5px auto 0px",
+					left: "auto",
+					top: "auto",
+					bottom: "auto",
+					right: "auto",
+					width: $(".box-game").width(),
+					zoom: ((ConfigManager.api_gameScale || 100) / 100)
+				});
+				break;
+			case "stick":
+				$(".overlay_subtitles").appendTo("body");
+				$(".overlay_subtitles").css({
+					position: "fixed",
+					left: "50%",
+					top: "auto",
+					bottom: "3px",
+					right: "auto",
+					margin: "0px 0px 0px "+(-($(".box-game").width()/2))+"px",
+					width: $(".box-game").width()
+				});
+				break;
+			default: break;
 		}
 	}
 	
@@ -101,15 +162,95 @@ $(document).on("ready", function(){
 	
 	// Quick Play
 	$(".play_btn").on('click', function(){
-		if($(this).data('play'))
-			ActivateGame();
+		ActivateGame();
 	});
 	
-	$(".play_btn").data('play',!ConfigManager.api_mustPanel);
+	// Disable Quick Play (must panel)
+	if(ConfigManager.api_mustPanel) {
+		$(".play_btn")
+			.off("click")
+			.attr("disabled", "disabled")
+			.text(KC3Meta.term("APIWaitToggle"))
+			.css("color", "#777")
+			.css('width', "40%");
+	}
+	
+	// I've read the Chrome 54 API Link notice
+	$("#chrome54flash .api_notice_close").on('click', function(){
+		localStorage.read_api_notice = 1;
+		$("#chrome54flash").hide();
+	});
+	
+	// I've read the Chrome 55 API Link notice
+	$("#chrome55network .api_notice_close").on('click', function(){
+		localStorage.read_api_notice_55 = 1;
+		$("#chrome55network").hide();
+	});
+	
+	// untranslated quest copiable text form
+	$(".overlay_quests").on("click", ".no_tl", function(){
+		chrome.tabs.create({
+			url: "https://translate.google.com/#ja/"+ConfigManager.language+"/"
+				+encodeURIComponent($(this).data("qtitle"))
+				+"%0A%0A"
+				+encodeURIComponent($(this).data("qdesc"))
+		});
+	});
+	
+	// Overlay avoids cursor
+	$(".overlay_subtitles span").on("mouseover", function(){
+		switch (ConfigManager.subtitle_display) {
+			case "evade":
+				if (subtitlePosition == "bottom") {
+					$(".overlay_subtitles").css("bottom", "");
+					$(".overlay_subtitles").css("top", "5px");
+					subtitlePosition = "top";
+				} else {
+					$(".overlay_subtitles").css("top", "");
+					$(".overlay_subtitles").css("bottom", "5px");
+					subtitlePosition = "bottom";
+				}
+				break;
+			case "ghost":
+				$(".overlay_subtitles").addClass("ghost");
+				break;
+			default: break;
+		}
+	});
+	
+	// Configure Idle Timer
+	/*
+	  unsafe-tick  : remove the safe marker of API idle time
+	  refresh-tick : reset the timer and set the idle time as safe zone
+	*/
+	$(".game-idle-timer").on("unsafe-tick",function(){
+		$(".game-idle-timer").removeClass("safe-timer");
+	}).on("refresh-tick",function(){
+		clearTimeout(idleTimeout);
+		$(".game-idle-timer").addClass("safe-timer");
+		idleTimeout = setTimeout(function(){
+			$(".game-idle-timer").trigger("unsafe-tick");
+		},localStorage.longestIdleTime);
+	});
+	idleFunction = function(){
+		if(ConfigManager.alert_idle_counter) {
+			$(".game-idle-timer").text(String(Math.floor((Date.now() - lastRequestMark) / 1000)).toHHMMSS());
+			// Show Idle Counter
+			if(ConfigManager.alert_idle_counter > 1) {
+				$(".game-idle-timer").show();
+			} else {
+				$(".game-idle-timer").hide();
+			}
+		} else {
+			$(".game-idle-timer").text(String(NaN).toHHMMSS());
+			$(".game-idle-timer").hide();
+			clearInterval(idleTimer);
+		}
+	};
 	
 	// Exit confirmation
 	window.onbeforeunload = function(){
-		ConfigManager.load();
+		ConfigManager.loadIfNecessary();
 		// added waiting condition should be ignored
 		if(
 			ConfigManager.api_askExit==1 &&
@@ -118,6 +259,8 @@ $(document).on("ready", function(){
 		){
 			trustedExit = true;
 			setTimeout(function(){ trustedExit = false; }, 100);
+			// Not support custom message any more, see:
+			// https://bugs.chromium.org/p/chromium/issues/detail?id=587940
 			return KC3Meta.term("UnwantedExit");
 		}
 	};
@@ -143,7 +286,14 @@ $(document).on("keydown", function(event){
 			
 		// F9: Screenshot
 		case(120):
-			(new KCScreenshot()).start("Auto", $(".box-wrap"));
+			if (isTakingScreenshot) return;
+			isTakingScreenshot = true;
+			
+			(new KCScreenshot())
+				.setCallback(function(){
+					isTakingScreenshot = false;
+				})
+				.start("Auto", $(".box-wrap"));
 			return false;
 		
 		// F10: Clear overlays
@@ -193,9 +343,26 @@ var interactions = {
 		}
 	},
 	
+	// Request OK Marker
+	goodResponses :function(request, sender, response){
+		if(request.tcp_status === 200 && request.api_status === 1) {
+			localStorage.longestIdleTime = Math.max(localStorage.longestIdleTime,Date.now() - lastRequestMark);
+			lastRequestMark = Date.now();
+			$(".game-idle-timer").trigger("refresh-tick");
+			clearInterval(idleTimer);
+			idleTimer = setInterval(idleFunction,1000);
+			idleFunction();
+		} else {
+			clearInterval(idleTimer);
+			clearTimeout(idleTimeout);
+			$(".game-idle-timer").trigger("unsafe-tick");
+			console.error("API Link cease to functioning anymore after",String(Math.floor((Date.now() - lastRequestMark)/1000)).toHHMMSS(),"idle time");
+		}
+	},
+	
 	// Quest page is opened, show overlays
 	questOverlay :function(request, sender, response){
-		//Only skip overlay generation if neither of the overlay features is enabled.
+		// Only skip overlay generation if neither of the overlay features is enabled.
 		if(!ConfigManager.api_translation && !ConfigManager.api_tracking){ response({success:false}); return true; }
 		
 		KC3QuestManager.load();
@@ -228,7 +395,15 @@ var interactions = {
 						$(".tracking", QuestBox).addClass("small");
 					}
 				}else{
-					QuestBox.css({ visibility: "hidden" });
+					if(ConfigManager.google_translate) {
+						$(".with_tl", QuestBox).css({ visibility: "hidden" });
+						$(".no_tl", QuestBox).data("qid", QuestRaw.api_no);
+						$(".no_tl", QuestBox).data("qtitle", QuestRaw.api_title);
+						$(".no_tl", QuestBox).data("qdesc", QuestRaw.api_detail);
+						$(".no_tl", QuestBox).show();
+					} else {
+						QuestBox.css({ visibility: "hidden" });
+					}
 				}
 			}
 		});
@@ -237,7 +412,6 @@ var interactions = {
 	
 	// Quest Progress Notification
 	questProgress :function(request, sender, response){
-		
 		response({success:true});
 	},
 	
@@ -247,20 +421,93 @@ var interactions = {
 		response({success:true});
 	},
 	
+	// Show map markers for old worlds (node letters & icons)
+	markersOverlay :function(request, sender, response){
+		if(!ConfigManager.map_markers) { response({success:false}); return true; }
+		var sortieStartDelayMillis = 2800;
+		var markersShowMillis = 5000;
+		var compassLeastShowMillis = 3500;
+		if(markersOverlayTimer){
+			// Keep showing if last ones not disappear yet
+			clearTimeout(markersOverlayTimer);
+			$(".overlay_markers").show();
+		} else {
+			var letters = KC3Meta.nodeLetters(request.worldId, request.mapId);
+			var lettersFound = (!!letters && Object.keys(letters).length > 0);
+			var icons = KC3Meta.nodeMarkers(request.worldId, request.mapId);
+			var iconsFound =  (!!icons.length && icons.length > 0);
+			$(".overlay_markers").hide().empty();
+			if(lettersFound){
+				// Show node letters
+				var l;
+				for(l in letters){
+					var letterDiv = $('<div class="letter"></div>').text(l)
+						.css("left", letters[l][0] + "px")
+						.css("top", letters[l][1] + "px");
+					$(".overlay_markers").append(letterDiv);
+				}
+			}
+			if(iconsFound){
+				// Show some icon style markers
+				var i;
+				for(i in icons){
+					var obj = icons[i];
+					var iconImg = $('<img />')
+						.attr("src", "../../assets/img/" + obj.img)
+						.attr("width", obj.size[0])
+						.attr("height", obj.size[1]);
+					var iconDiv = $('<div class="icon"></div>')
+						.css("left", obj.pos[0] + "px")
+						.css("top", obj.pos[1] + "px")
+						.append(iconImg);
+					$(".overlay_markers").append(iconDiv);
+				}
+			}
+			if(request.needsDelay){
+				// Delay to show on start of sortie
+				setTimeout(function(){
+					$(".overlay_markers").fadeIn(1000);
+				}, sortieStartDelayMillis);
+			} else {
+				$(".overlay_markers").fadeIn(1000);
+			}
+			markersOverlayTimer = true;
+		}
+		if(markersOverlayTimer){
+			markersOverlayTimer = setTimeout(function(){
+				$(".overlay_markers").fadeOut(2000);
+				markersOverlayTimer = false;
+			}, markersShowMillis
+				+ (request.compassShow ? compassLeastShowMillis : 0)
+				+ (request.needsDelay ? sortieStartDelayMillis : 0)
+			);
+		}
+		response({success:true});
+	},
+	
 	// Remove HTML overlays
 	clearOverlays :function(request, sender, response){
 		// console.log("clearing overlays");
 		// app.Dom.clearOverlays();
-		$(".overlay_quests").html("");
+		$(".overlay_quests").empty();
+		$(".overlay_markers").empty();
 		$(".overlay_record").hide();
 		response({success:true});
 	},
 	
 	// Screenshot triggered, capture the visible tab
 	screenshot :function(request, sender, response){
+		if (isTakingScreenshot) return;
+		isTakingScreenshot = true;
+		
 		// ~Please rewrite the screenshot script
-		(new KCScreenshot()).start(request.playerName, $(".box-wrap"));
-		response({success:true});
+		(new KCScreenshot())
+			.setCallback(function(){
+				response({success:true});
+				isTakingScreenshot = false;
+			})
+			.start(request.playerName, $(".box-wrap"));
+		return true;
 	},
 	
 	// Fit screen
@@ -280,8 +527,7 @@ var interactions = {
 	},
 	
 	// Taiha Alert Start
-	taihaAlertStart :function(request, sender, response){
-		ConfigManager.load();
+	taihaAlertStart :function(request, sender, response, callback){
 		taihaStatus = true;
 		
 		if(ConfigManager.alert_taiha_blur) {
@@ -294,30 +540,61 @@ var interactions = {
 				$(".taiha_red").toggleClass("anim2");
 			}, 500);
 			
-			$(".taiha_blood").show();
-			$(".taiha_red").show();
+			$(".taiha_blood").show(0, function(){
+				$(".taiha_red").show(0, function(){
+					(callback || function(){})();
+				});
+			});
 		}
 	},
 	
 	// Taiha Alert Stop
-	taihaAlertStop :function(request, sender, response){
+	taihaAlertStop :function(request, sender, response, callback){
 		taihaStatus = false;
 		$(".box-wrap").removeClass("critical");
 		if(critAnim){ clearInterval(critAnim); }
-		$(".taiha_blood").hide();
-		$(".taiha_red").hide();
+		$(".taiha_blood").hide(0, function(){
+			$(".taiha_red").hide(0, function(){
+				(callback || function(){})();
+			});
+		});
+	},
+	
+	// Suspend Taiha Alert for taking screenshot
+	suspendTaiha :function(callback){
+		var self = this;
+		
+		if (!taihaStatus && !suspendedTaiha) {
+			(callback || function(){})();
+			return false;
+		}
+		
+		if (suspendedTaiha) {
+			clearTimeout(suspendedTaiha);
+			(callback || function(){})();
+		} else {
+			this.taihaAlertStop({}, {}, {}, function(){
+				setTimeout(function(){
+					(callback || function(){})();
+				}, 10);
+			});
+		}
+		
+		suspendedTaiha = setTimeout(function(){
+			self.taihaAlertStart({}, {}, {});
+			suspendedTaiha = false;
+		}, 2000);
 	},
 	
 	// Show subtitles
 	subtitle :function(request, sender, response){
 		if(!ConfigManager.api_subtitles) return true;
 		
-		console.debug("subtitle", request);
-		
 		// Get subtitle text
 		var subtitleText = false;
 		var quoteIdentifier = "";
 		var quoteVoiceNum = request.voiceNum;
+		var quoteSpeaker = "";
 		switch(request.voicetype){
 			case "titlecall":
 				quoteIdentifier = "titlecall_"+request.filename;
@@ -327,9 +604,12 @@ var interactions = {
 				break;
 			default:
 				quoteIdentifier = request.shipID;
+				if(ConfigManager.subtitle_speaker){
+					quoteSpeaker = KC3Meta.shipName(KC3Master.ship(quoteIdentifier).api_name);
+				}
 				break;
 		}
-		console.debug("looking up quote:", quoteIdentifier, quoteVoiceNum);
+		//console.debug("looking up quote:", quoteIdentifier, quoteVoiceNum);
 		subtitleText = KC3Meta.quote( quoteIdentifier, quoteVoiceNum );
 		
 		// hide first to fading will stop
@@ -350,15 +630,30 @@ var interactions = {
 		
 		// If subtitles available for the voice
 		if(subtitleText){
-			$(".overlay_subtitles").html(subtitleText);
+			$(".overlay_subtitles span").html(subtitleText);
 			$(".overlay_subtitles").show();
 			var millis = subtitleVanishBaseMillis +
 				(subtitleVanishExtraMillisPerChar * $(".overlay_subtitles").text().length);
-			console.debug("vanish after", millis, "ms");
+			//console.debug("vanish after", millis, "ms");
 			subtitleVanishTimer = setTimeout(function(){
 				subtitleVanishTimer = false;
-				$(".overlay_subtitles").fadeOut(2000);
+				$(".overlay_subtitles").fadeOut(1000, function(){
+					switch (ConfigManager.subtitle_display) {
+						case "evade":
+							$(".overlay_subtitles").css("top", "");
+							$(".overlay_subtitles").css("bottom", "5px");
+							subtitlePosition = "bottom";
+							break;
+						case "ghost":
+							$(".overlay_subtitles").removeClass("ghost");
+							break;
+						default: break;
+					}
+				});
 			}, millis);
+			if(!!quoteSpeaker){
+				$(".overlay_subtitles span").html("{0}: {1}".format(quoteSpeaker, subtitleText));
+			}
 		}
 	}
 	
@@ -371,6 +666,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, response){
 	if((request.identifier||"") == "kc3_gamescreen"){
 		// If action requested is supported
 		if(typeof interactions[request.action] !== "undefined"){
+			ConfigManager.loadIfNecessary();
 			// Execute the action
 			interactions[request.action](request, sender, response);
 			return true;

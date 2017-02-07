@@ -59,6 +59,22 @@ body {
 	color:#999;
 }
 
+/* MENU: SHORT
+--------------------------*/
+.menu.short {
+	height:50px;
+}
+.menu.short .icon img {
+	opacity:0.5;
+}
+.menu.short .text {
+	color:#cc0000;
+}
+.menu.short .desc {
+	height:15px;
+	color:#ccaaaa;
+}
+
 /* FACEBOOK
 --------------------------*/
 .footFb {
@@ -103,6 +119,8 @@ body {
 	font-size:12px;
 	padding:0px 0px 0px 5px;
 	background:#def;
+	word-break: break-all;
+	overflow: hidden;
 }
 .updateTime {
 	color:#f00;

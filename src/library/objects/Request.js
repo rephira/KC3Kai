@@ -74,7 +74,16 @@ Executes processing and relies on KC3Network for the triggers
 	KC3Request.prototype.validateData = function(){
 		// If gameStatus is not 1. Game API returns 1 if complete success
 		if(this.gameStatus != 1){
-			console.error(this.gameStatus, this.response);
+			console.error("Error Game Status", this.gameStatus, this.response);
+			
+			// Error 201
+			if (parseInt(this.gameStatus, 10) === 201) {
+				KC3Network.trigger("Bomb201", {
+					title: KC3Meta.term("Bomb201Title"),
+					message: KC3Meta.term("Bomb201Message")
+				});
+				return false;
+			}
 			
 			// If it fails on "api_start2" which is the first API call
 			if(this.call == "api_start2"){
@@ -151,8 +160,25 @@ Executes processing and relies on KC3Network for the triggers
 			try {
 				Kcsapi[this.call]( this.params, this.response, this.headers );
 			} catch (e) {
-				console.error(e.stack);/*RemoveLogging:skip*/
-				throw e;
+				var reportParams = $.extend({}, this.params);
+				// Protect player's privacy
+				delete reportParams.api_token;
+				KC3Network.trigger("APIError", {
+					title: KC3Meta.term("APIErrorNoticeTitle"),
+					message: KC3Meta.term("APIErrorNoticeMessage").format([this.call]),
+					stack: e.stack,
+					request: {
+						url: this.url,
+						headers: this.headers,
+						statusCode: this.statusCode
+					},
+					params: reportParams,
+					response: this.response,
+					serverUtc: serverTime,
+					kc3Manifest: [chrome.runtime.getManifest().name, chrome.runtime.getManifest().version].join(" ")
+				});
+				// Keep stack logging in extension's console
+				console.log(e.stack);/*RemoveLogging:skip*/
 			}
 		}
 	};

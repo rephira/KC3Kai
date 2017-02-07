@@ -5,6 +5,7 @@
 	var HASH_PARAM_DELIM = "-";
 	var WINDOW_TITLE = "KC3改 Strategy Room";
 	var activeTab;
+	var THEME;
 	
 	Object.defineProperties(window,{
 		activeTab:{
@@ -23,6 +24,8 @@
 		ConfigManager.load();
 		KC3Master.init();
 		KC3Meta.init("../../data/");
+		KC3Master.loadAbyssalShips("../../data/");
+		KC3Master.loadSeasonalShips("../../data/");
 		KC3Meta.defaultIcon("../../assets/img/ui/empty.png");
 		PlayerManager.init();
 		KC3ShipManager.load();
@@ -31,6 +34,13 @@
 		RemodelDb.init();
 		KC3Translation.execute();
 		WhoCallsTheFleetDb.init("../../");
+		
+		THEME = ConfigManager.sr_theme || "dark";
+		var themeCSS = document.createElement("link");
+		themeCSS.rel = "stylesheet";
+		themeCSS.type = "text/css";
+		themeCSS.href = "./themes/"+THEME+".css";
+		$("head").append(themeCSS);
 		
 		if(!KC3Master.available){
 			$("#error").text("Strategy Room is not ready. Please open the game once so we can get data. Also make sure following the instructions, that open the F12 devtools panel first before the Game Player shown.");
@@ -166,6 +176,15 @@
 			console.debug("Auto reloading from [", oldHash, "] to [", newHash, "]");
 			KC3StrategyTabs.reloadTab();
 		}
+	};
+
+	KC3StrategyTabs.isTextEllipsis = function(element){
+		var $c = $(element).clone()
+			.css({display: 'inline', width: 'auto', visibility: 'hidden'})
+			.appendTo('body');
+		var cWidth = $c.width();
+		$c.remove();
+		return cWidth > $(element).width();
 	};
 
 })();

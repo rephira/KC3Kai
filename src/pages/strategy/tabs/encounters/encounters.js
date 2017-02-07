@@ -28,6 +28,7 @@
 				KC3StrategyTabs.gotoTab("mstship", $(this).attr("alt"));
 			};
 			
+			$(".loading").show();
 			KC3Database.con.encounters.toArray(function(response){
 				self.list = response;
 				
@@ -70,13 +71,19 @@
 						$.each(shipList, function(shipIndex, shipId){
 							if(shipId > 0){
 								shipBox = $(".tab_encounters .factory .encounter_ship").clone();
+								$(".encounter_icon", shipBox).removeClass(KC3Meta.abyssShipBorderClass());
+								$(".encounter_icon", shipBox).addClass(KC3Meta.abyssShipBorderClass(shipId));
 								$(".encounter_icon img", shipBox).attr("src", KC3Meta.abyssIcon(shipId));
 								$(".encounter_icon img", shipBox).attr("alt", shipId);
 								$(".encounter_icon img", shipBox).click(shipClickFunc);
 								$(".encounter_id", shipBox).text(shipId);
+								$(shipBox).attr("title", KC3Meta.abyssShipName(shipId));
 								shipBox.appendTo($(".encounter_ships", curBox));
 							}
 						});
+						if(shipList.length > 6){
+							$(".encounter_ships", curBox).addClass("combined");
+						}
 					} else {
 						// Update count
 						curBox.data("count", (encounter.count || 1) + curBox.data("count") );
@@ -89,6 +96,7 @@
 				});
 				
 				//console.log(self.list);
+				$(".loading").hide();
 			});
 		}
 		

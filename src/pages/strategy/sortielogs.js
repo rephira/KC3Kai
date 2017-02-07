@@ -67,6 +67,25 @@
 				KC3StrategyTabs.gotoTab(null, $(this).data("world_num"));
 			});
 			
+			// Toggleable world scroll
+			$(".tab_"+tabCode+" .world_shift").on("click", function(){
+				var le,cr,re;
+				le = 0;
+				cr = $(window).data("world_off");
+				re = $(window).data("world_max");
+				$(window).data("world_off",cr = Math.max(le,Math.min(re,(function(e){
+					if(e.hasClass("disabled"))
+						return cr;
+					else if(e.hasClass("left"))
+						return cr-1;
+					else if(e.hasClass("right"))
+						return cr+1;
+					else
+						return cr;
+				})($(this)))));
+				updateScrollItem("world", 116);
+			});
+			
 			// On-click map menus
 			$(".tab_"+tabCode+" .map_list").on("click", ".map_box", function(){
 				KC3StrategyTabs.gotoTab(null, self.selectedWorld, $(this).data("map_num"));
@@ -88,7 +107,7 @@
 					else
 						return cr;
 				})($(this)))));
-				updateScrollItem();
+				updateScrollItem("map", 97);
 			});
 			
 			// On-click sortie ID export battle
@@ -139,9 +158,21 @@
 			$(".tab_"+tabCode+" .world_box").removeClass("active");
 			$(".tab_"+tabCode+" .world_box[data-world_num={0}]".format(self.selectedWorld)).addClass("active");
 
-			$(".tab_"+tabCode+" .map_list").html("").css("width","").css("margin-left","");
-			$(".tab_"+tabCode+" .page_list").html("");
-			$(".tab_"+tabCode+" .sortie_list").html("");
+			$(".tab_"+tabCode+" .map_list").empty().css("width","").css("margin-left","");
+			$(".tab_"+tabCode+" .page_list").empty();
+			$(".tab_"+tabCode+" .sortie_list").empty();
+			var countWorlds = $(".tab_"+tabCode+" .world_box").length;
+			var worldOffset = $(window).data("world_off");
+			var selectOffset = $(".tab_"+tabCode+" .world_box[data-world_num={0}]".format(self.selectedWorld)).index();
+			if(typeof worldOffset === "undefined"){
+				$(window).data("world_off", Math.min(selectOffset, countWorlds-6));
+			} else if(selectOffset < worldOffset){
+				$(window).data("world_off", selectOffset);
+			} else if(selectOffset >= 6+((tabCode=="maps")&1) && worldOffset < selectOffset-5){
+				$(window).data("world_off", selectOffset-5);
+			}
+			$(window).data("world_max", Math.max(0, countWorlds-6));
+			updateScrollItem("world", 116);
 
 			if(self.selectedWorld !== 0){
 				// Add all maps in this world selection
@@ -161,7 +192,7 @@
 				mapBox.addClass("empty");
 				mapBox.addClass("active");
 
-				updateScrollItem(tabCode);
+				updateScrollItem("map", 97);
 
 				var diffStr = ["E","N","H"];
 				// Check player's map list
@@ -353,6 +384,9 @@
 			var self = this;
 			// Show sortie records on list
 			var sortieBox, fleets, fleetkey, mainFleet, isCombined, rshipBox, nodeBox, thisNode, sinkShips;
+			var shipClickFunc = function(e){
+				KC3StrategyTabs.gotoTab("mstship", $(this).attr("alt"));
+			};
 			$.each(sortieList, function(id, sortie){
 				try {
 					var skey = ["m",sortie.world,sortie.mapnum].join('');
@@ -392,6 +426,9 @@
 								if(ship===false){ return false; }
 								
 								$(".sortie_ship_"+(index+1)+" img", sortieBox).attr("src", KC3Meta.shipIcon(ship.mst_id));
+								$(".sortie_ship_"+(index+1)+" img", sortieBox).attr("alt", ship.mst_id);
+								$(".sortie_ship_"+(index+1)+" img", sortieBox).click(shipClickFunc);
+								$(".sortie_ship_"+(index+1), sortieBox).addClass("hover");
 								$(".sortie_ship_"+(index+1), sortieBox).addClass("simg-"+ship.mst_id);
 								$(".sortie_ship_"+(index+1), sortieBox).show();
 							}
@@ -455,6 +492,12 @@
 								battleType = BATTLE_INVALID;
 								return true;
 							}
+							var airRaidLostKind = (battle.airRaid || {}).api_lost_kind;
+							var baseTotalDamage = battle.airRaid && battle.airRaid.api_air_base_attack
+									&& battle.airRaid.api_air_base_attack.api_stage3
+									&& battle.airRaid.api_air_base_attack.api_stage3.api_fdam ?
+									Math.floor(battle.airRaid.api_air_base_attack.api_stage3.api_fdam.slice(1).reduce(function(a,b){return a+b;},0))
+								: 0;
 							
 							battle.shizunde |= [[],[]];
 							
@@ -465,6 +508,16 @@
 							// HTML elements
 							nodeBox = $(".tab_"+tabCode+" .factory .sortie_nodeinfo").clone();
 							$(".node_id", nodeBox).text( KC3Meta.nodeLetter( sortie.world, sortie.mapnum, battle.node ) );
+							if(airRaidLostKind > 0){
+								$(".node_id", nodeBox).addClass(airRaidLostKind === 4 ? "nodamage" : "damaged");
+								// Show Enemy Air Raid damage
+								if(airRaidLostKind != 4){
+									$(".node_id", nodeBox).attr("title",
+										KC3Meta.term("BattleAirBaseLossTip").format(baseTotalDamage, Math.round(baseTotalDamage * 0.9 + 0.1)));
+								}
+							} else {
+								$(".node_id", nodeBox).removeClass("nodamage damaged");
+							}
 							
 							// Result Icons
 							$(".node_formation img", nodeBox).attr("src", KC3Meta.formationIcon(battleData.api_formation[0]) );
@@ -474,15 +527,11 @@
 							// Kanmusu Drop
 							if(battle.drop > 0){
 								$(".node_drop img", nodeBox).attr("src", KC3Meta.shipIcon( battle.drop ) );
+								$(".node_drop img", nodeBox).attr("alt", battle.drop);
+								$(".node_drop img", nodeBox).click(shipClickFunc);
+								$(".node_drop", nodeBox).addClass("hover");
 							}else{
 								$(".node_drop img", nodeBox).attr("src", "../../assets/img/ui/shipdrop-x.png");
-							}
-							
-							// Support Exped Triggered
-							if(battle.data.api_support_flag > 0){
-								$(".node_support img", nodeBox).attr("src", "../../assets/img/ui/support.png");
-							}else{
-								$(".node_support img", nodeBox).attr("src", "../../assets/img/ui/support-x.png");
 							}
 							
 							// Enemies
@@ -492,6 +541,11 @@
 								if(eship > -1){
 									$(".node_eship_"+(index+1)+" img", nodeBox).attr("src", KC3Meta.abyssIcon( eship ) );
 									$(".node_eship_"+(index+1), nodeBox).attr("title", KC3Meta.abyssShipName( eship) );
+									$(".node_eship_"+(index+1)+" img", nodeBox).attr("alt", eship);
+									$(".node_eship_"+(index+1)+" img", nodeBox).click(shipClickFunc);
+									$(".node_eship_"+(index+1), nodeBox).addClass("hover");
+									$(".node_eship_"+(index+1), nodeBox).removeClass(KC3Meta.abyssShipBorderClass());
+									$(".node_eship_"+(index+1), nodeBox).addClass(KC3Meta.abyssShipBorderClass(eship));
 									$(".node_eship_"+(index+1), nodeBox).show();
 								}
 							});
@@ -509,6 +563,21 @@
 							
 							sinkShips[0].concat(battle.shizunde[0]);
 							sinkShips[1].concat(battle.shizunde[1]);
+							
+							// Support Exped/LBAS Triggered
+							if(thisNode.supportFlag || thisNode.lbasFlag){
+								$(".node_support img", nodeBox).attr("src", "../../assets/img/ui/support.png");
+								if(thisNode.supportFlag && !!battleData.api_support_info){
+									var fleetId = (battleData.api_support_info.api_support_airatack||{}).api_deck_id
+										|| (battleData.api_support_info.api_support_hourai||{}).api_deck_id || "?";
+									$(".node_support .exped", nodeBox).text(fleetId);
+									$(".node_support .exped", nodeBox).show();
+								}
+								$(".node_support .lbas", nodeBox).toggle(thisNode.lbasFlag);
+								$(".node_support", nodeBox).attr("title", thisNode.buildSupportAttackMessage(thisNode));
+							}else{
+								$(".node_support img", nodeBox).attr("src", "../../assets/img/ui/support-x.png");
+							}
 							
 							// Conditions
 							$(".node_engage", nodeBox).text( thisNode.engagement[2] );
@@ -587,22 +656,22 @@
 			$(".tab_"+tabCode+" .pagination").show();
 		};
 		
-		function updateScrollItem() {
+		function updateScrollItem(worldMap, itemWidth) {
 			var
 				le = 0,
-				cr = $(window).data("map_off"),
-				re = $(window).data("map_max");
+				cr = $(window).data(worldMap + "_off"),
+				re = $(window).data(worldMap + "_max");
 			if(cr<=le)
-				$(".tab_"+tabCode+" .map_shift.left").addClass("disabled");
+				$(".tab_"+tabCode+" ."+worldMap+"_shift.left").addClass("disabled");
 			else
-				$(".tab_"+tabCode+" .map_shift.left").removeClass("disabled");
-				
-			if(cr>=re)
-				$(".tab_"+tabCode+" .map_shift.right").addClass("disabled");
-			else
-				$(".tab_"+tabCode+" .map_shift.right").removeClass("disabled");
+				$(".tab_"+tabCode+" ."+worldMap+"_shift.left").removeClass("disabled");
 			
-			$(".tab_"+tabCode+" .map_list").css("margin-left",(cr * -97) + "px");
+			if(cr>=re)
+				$(".tab_"+tabCode+" ."+worldMap+"_shift.right").addClass("disabled");
+			else
+				$(".tab_"+tabCode+" ."+worldMap+"_shift.right").removeClass("disabled");
+			
+			$(".tab_"+tabCode+" ."+worldMap+"_list").css("margin-left",(cr * -itemWidth) + "px");
 		}
 		
 		/* EXPORT REPLAY IMAGE

@@ -20,15 +20,43 @@ See Manifest File [manifest.json] under "background" > "scripts"
 	
 	console.info("KC3改 Background Service loaded");
 	
+	ConfigManager.load();
+	KC3Meta.init("../../data/");
 	
-	if (typeof localStorage.kc3version == "undefined"){
-		window.open("../../pages/update/update.html#installed", "kc3kai_updates");
-		
-	} else {
-		if (localStorage.kc3version != chrome.runtime.getManifest().version) {
-			window.open("../../pages/update/update.html#updated", "kc3kai_updates");
-		}
+	switch (ConfigManager.updateNotification) {
+		case 2: // Open update status page
+			if (typeof localStorage.kc3version == "undefined"){
+				window.open("../../pages/update/update.html#installed", "kc3_update_page");
+			} else {
+				if (localStorage.kc3version != chrome.runtime.getManifest().version) {
+					window.open("../../pages/update/update.html#updated", "kc3_update_page");
+				}
+			}
+			break;
+		case 3: // Just desktop notification
+			if (typeof localStorage.kc3version == "undefined"){
+				chrome.notifications.clear("kc3kai_update");
+				chrome.notifications.create("kc3kai_update", {
+					type: "basic",
+					iconUrl: chrome.extension.getURL("assets/img/logo/128.png"),
+					title: KC3Meta.term("InstalledTitle"),
+					message: KC3Meta.term("InstalledText"),
+				});
+			} else {
+				if (localStorage.kc3version != chrome.runtime.getManifest().version) {
+					chrome.notifications.clear("kc3kai_update");
+					chrome.notifications.create("kc3kai_update", {
+						type: "basic",
+						iconUrl: chrome.extension.getURL("assets/img/logo/128.png"),
+						title: KC3Meta.term("UpdatedTitle"),
+						message: KC3Meta.term("UpdatedText"),
+					});
+				}
+			}
+			break;
 	}
+	
+	
 	
 	localStorage.kc3version = chrome.runtime.getManifest().version;
 	
@@ -118,6 +146,19 @@ See Manifest File [manifest.json] under "background" > "scripts"
 			(new TMsg(request.tabId, "gamescreen", "clearOverlays", {})).execute();
 		},
 		
+		/* MAP MARKERS
+		When sortie to a world map, show node markers
+		------------------------------------------*/
+		"mapMarkers" :function(request, sender, response){
+			(new TMsg(request.tabId, "gamescreen", "markersOverlay", {
+				worldId: request.nextNode.api_maparea_id,
+				mapId: request.nextNode.api_mapinfo_no,
+				compassShow: !!request.nextNode.api_rashin_flg,
+				needsDelay: !!request.startSortie,
+				apiData: request.nextNode
+			})).execute();
+		},
+		
 		/* GET CONFIG
 		For content scripts who doesnt have access to localStorage
 		Mainly used at the moment for DMM cookie injection
@@ -180,7 +221,8 @@ See Manifest File [manifest.json] under "background" > "scripts"
 		------------------------------------------*/
 		"dmmFrameInject" :function(request, sender, response){
 			if(sender.tab.url.indexOf("/pages/game/dmm.html") > -1){
-				response({value:true});
+				ConfigManager.load();
+				response({value:true, scale:ConfigManager.api_gameScale});
 			}else{
 				response({value:false});
 			}
@@ -289,5 +331,60 @@ See Manifest File [manifest.json] under "background" > "scripts"
 	});
 	
 	
+	/* On Update Available
+	This will avoid auto-restart when webstore update is available
+	Officially handle the moment update is release and user is playing
+	------------------------------------------*/
+	delete localStorage.updateAvailable;
+	chrome.runtime.onUpdateAvailable.addListener(function(details){
+		localStorage.updateAvailable = details.version;
+		
+		ConfigManager.load();
+		switch (ConfigManager.updateNotification) {
+			case 2: // Open update status page
+				chrome.windows.getCurrent(null, function(cwindow){
+					chrome.tabs.create({
+						windowId: cwindow.id,
+						url: chrome.extension.getURL("pages/update/update.html"),
+						active: false
+					});
+				});
+				break;
+			case 3: // Just desktop notification
+				chrome.notifications.clear("kc3kai_update");
+				chrome.notifications.create("kc3kai_update", {
+					type: "basic",
+					iconUrl: chrome.extension.getURL("assets/img/logo/128.png"),
+					title: KC3Meta.term("UpdateNotifTitle").format(details.version),
+					message: KC3Meta.term("UpdateNotifText"),
+					buttons: [
+						{ title: KC3Meta.term("PageUpdateRestartNow") },
+						{ title: KC3Meta.term("PageUpdateRestartLater") }
+					],
+					requireInteraction: true
+				});
+				break;
+		}
+	});
 	
+	// Chrome Desktop Notifications: Box Click
+	chrome.notifications.onClicked.addListener(function(notificationId, byUser){
+		if (notificationId == "kc3kai_update") {
+			window.open("../../pages/update/update.html", "kc3_update_page");
+			chrome.notifications.clear("kc3kai_update");
+		}
+	});
+	
+	// Chrome Desktop Notifications: Button Click
+	chrome.notifications.onButtonClicked.addListener(function(notificationId, buttonIndex){
+		if (notificationId == "kc3kai_update") {
+			if (buttonIndex === 0) {
+				reloadApp();
+			} else {
+				chrome.notifications.clear("kc3kai_update");
+			}
+		}
+	});
+	
+	function reloadApp(){ chrome.runtime.reload(); }
 })();

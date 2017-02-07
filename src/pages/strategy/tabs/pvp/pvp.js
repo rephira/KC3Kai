@@ -16,7 +16,6 @@
 		
 		init :function(){},
 		reload :function(){
-			this.toggleMode = 1;
 		},
 		execute :function(){
 			var self = this;
@@ -81,7 +80,13 @@
 		---------------------------------*/
 		showPage :function(pageNum){
 			var self = this;
+			this.toggleMode = 1;
 			$("#pvp_list").empty();
+			$(".tab_pvp .pvp_toggle").removeClass("active");
+			$(".tab_pvp .pvp_toggle_ships").addClass("active");
+			$(".tab_pvp .pvp_player").width(290);
+			$(".tab_pvp .pvp_opponent").width(290);
+			$(".tab_pvp .pvp_battle").width(0);
 			KC3Database.get_pvps(pageNum, function(results){
 				$.each(results, function(index, pvpBattle){
 					self.cloneBattleBox(pvpBattle);
@@ -92,7 +97,7 @@
 		/* CLONE ONE BATTLE BOX RECORD
 		---------------------------------*/
 		cloneBattleBox :function(pvpBattle){
-			console.debug("PvP battle record:", pvpBattle);
+			//console.debug("PvP battle record:", pvpBattle);
 			var self = this;
 			
 			self.box_record = $(".tab_pvp .factory .pvp_record").clone();
@@ -140,10 +145,19 @@
 		---------------------------------*/
 		cloneShipBox :function(data, targetBox){
 			var self = this;
+			var shipClickFunc = function(e){
+				KC3StrategyTabs.gotoTab("mstship", $(this).attr("alt"));
+			};
+			var gearClickFunc = function(e){
+				KC3StrategyTabs.gotoTab("mstgear", $(this).attr("alt"));
+			};
 			this.box_ship = $(".tab_pvp .factory .pvp_details_ship").clone();
 			
 			$(".pvp_ship_icon img", this.box_ship).attr("src", KC3Meta.shipIcon(data.mst_id));
+			$(".pvp_ship_icon img", this.box_ship).attr("alt", data.mst_id);
+			$(".pvp_ship_icon img", this.box_ship).click(shipClickFunc);
 			$(".pvp_ship_icon", this.box_ship).addClass("simg-"+data.mst_id);
+			$(".pvp_ship_icon", this.box_ship).addClass("hover");
 			$(".pvp_ship_name", this.box_ship).text(KC3Meta.shipName(KC3Master.ship(data.mst_id).api_name));
 			
 			$(".pvp_ship_level span", this.box_ship).text(data.level);
@@ -164,8 +178,11 @@
 					var divTag = $("<div/>").addClass("pvp_ship_item");
 					
 					thisItem = KC3Master.slotitem(itemMstId);
-					var imgTag = $("<img/>").attr("src", "../../assets/img/items/"+thisItem.api_type[3]+".png");
-					divTag.append(imgTag).attr("title", KC3Meta.gearName(thisItem.api_name));
+					var imgTag = $("<img/>").attr("src", "../../assets/img/items/"+thisItem.api_type[3]+".png")
+						.attr("alt", itemMstId)
+						.attr("title", KC3Meta.gearName(thisItem.api_name))
+						.click(gearClickFunc);
+					divTag.append(imgTag).addClass("hover");
 					
 					$(".pvp_ship_items", self.box_ship).append(divTag);
 				}
@@ -194,7 +211,7 @@
 		/* FILL ONE BATTLE BOX (DAY/NIGHT)
 		---------------------------------*/
 		fillBattleBox :function(nodeInfo, targetBox){
-			console.debug("Simulated node info:", nodeInfo);
+			//console.debug("Simulated node info:", nodeInfo);
 			$(".node_engage", targetBox).text( nodeInfo.engagement[2] );
 			$(".node_engage", targetBox).addClass( nodeInfo.engagement[1] );
 			$(".node_contact", targetBox).text(nodeInfo.fcontact +" vs "+nodeInfo.econtact);

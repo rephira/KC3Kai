@@ -36,49 +36,16 @@
 		 */
 
 		fleetsObjToDeckBuilder: function(fleetsObj) {
-			var dBuilder = {};
-			dBuilder.version = 3;
+			var self = this;
+			var dBuilder = {
+				version: 4
+			};
 
-			function convertShip(shipObj) {
-				var ship = {};
-				ship.id = shipObj.id;
-				ship.lv = shipObj.level;
-				ship.luck = shipObj.luck;
-				ship.items = {};
-
-				$.each([0,1,2,3,4], function(_,ind) {
-					var gearObj = shipObj.equipments[ind];
-					if (!gearObj) return;
-					var gear = {};
-					gear.id = gearObj.id;
-
-					if (gearObj.ace && gearObj.ace > 0) {
-						gear.rf = gearObj.ace;
-					} else if (gearObj.improve) {
-						gear.rf = gearObj.improve;
-					}
-
-					var key = ind === 4 ? "ix" : "i"+(ind+1);
-					ship.items[key] = gear;
+			fleetsObj
+				.map( self.createKCFleetObject )
+				.map( function(x,i) {
+					dBuilder["f" + (i+1)] = x.deckbuilder();
 				});
-				return ship;
-			}
-
-			function convertFleet(fleetObj) {
-				var fleet = {};
-				$.each([0,1,2,3,4,5], function(_,ind) {
-					var shipObj = fleetObj.ships[ind];
-					if (!shipObj) return;
-					fleet["s"+(ind+1)] = convertShip(shipObj);
-				});
-				return fleet;
-			}
-
-			$.each([0,1,2,3], function(_,ind) {
-				var fleetObj = fleetsObj[ind];
-				if (fleetObj)
-					dBuilder["f"+(ind+1)] = convertFleet( fleetObj );
-			});
 			return dBuilder;
 		},
 
@@ -315,12 +282,15 @@
 					shipObj.luck = masterData.api_luck[0];
 					shipObj.equipments = [];
 
-					$.each( shipData.equip, function(_,gearId) {
+					$.each( shipData.equip, function(i,gearId) {
 						if (gearId <= 0) {
 							shipObj.equipments.push(null);
 							return;
 						}
-						shipObj.equipments.push( {id: gearId } );
+						shipObj.equipments.push( {id: gearId,
+							improve: shipData.stars ? shipData.stars[i] : 0,
+							ace: shipData.ace ? shipData.ace[i] : 0
+						} );
 					});
 
 					while (shipObj.equipments.length !== 5)
@@ -383,8 +353,11 @@
 			// Show fleet info
 			$(".detail_level .detail_value", fleetBox).text( kcFleet.totalLevel() );
 			$(".detail_los .detail_icon img", fleetBox).attr("src", "../../../../assets/img/stats/los"+ConfigManager.elosFormula+".png" );
-			$(".detail_los .detail_value", fleetBox).text( Math.round( kcFleet.eLoS() * 100) / 100 );
+			$(".detail_los .detail_value", fleetBox).text( Math.qckInt("floor", kcFleet.eLoS(), 1) );
 			$(".detail_air .detail_value", fleetBox).text( kcFleet.fighterPowerText() );
+			$(".detail_antiair .detail_value", fleetBox).text( kcFleet.adjustedAntiAir(ConfigManager.aaFormation) )
+				.attr("title", "Line-Ahead: {0}\nDouble-Line: {1}\nDiamond: {2}"
+					.format(kcFleet.adjustedAntiAir(1), kcFleet.adjustedAntiAir(2), kcFleet.adjustedAntiAir(3)) );
 			$(".detail_speed .detail_value", fleetBox).text( kcFleet.speed() );
 			$(".detail_support .detail_value", fleetBox).text( kcFleet.supportPower() );
 		},
@@ -392,7 +365,7 @@
 		/* Show single ship
 		   --------------------------------------------*/
 		showKCShip: function(fleetBox, kcShip) {
-			if (kcShip.masterId === 0) return;
+			if (!kcShip || kcShip.masterId === 0) return;
 
 			var self = this;
 			var shipBox = $(".tab_fleet .factory .fleet_ship").clone();
@@ -409,20 +382,13 @@
 			$(".ship_lv_val", shipBox).text( kcShip.level );
 			var nameBox = $(".ship_name", shipBox);
 			nameBox.text( kcShip.name() );
-			var isEllipsis = function(element){
-				var $c = $(element).clone()
-					.css({display: 'inline', width: 'auto', visibility: 'hidden'})
-					.appendTo('body');
-				var cWidth = $c.width();
-				$c.remove();
-				return cWidth > $(element).width();
-			};
-			if (isEllipsis(nameBox)) nameBox.attr("title", nameBox.text());
+			if (KC3StrategyTabs.isTextEllipsis(nameBox))
+				nameBox.attr("title", nameBox.text());
 
 			$.each([0,1,2,3,4], function(_,ind) {
 				self.showKCGear(
 					$(".ship_gear_"+(ind+1), shipBox),
-					ind === 4 ? kcShip.exItem() : kcShip.equipment(ind),
+					kcShip.equipment(ind),
 					kcShip.slots[ind]);
 			});
 		},
@@ -434,7 +400,6 @@
 				gearBox.hide();
 				return;
 			}
-
 			var masterData = kcGear.master();
 			$("img", gearBox).attr("src", "../../assets/img/items/"+masterData.api_type[3]+".png");
 			$("img", gearBox).attr("alt", masterData.api_id);
@@ -457,7 +422,7 @@
 		createKCFleetObject: function(fleetObj) {
 			var fleet = new KC3Fleet();
 			fleet.name = fleetObj.name;
-			fleet.ships = [1,2,3,4,5,6];
+			fleet.ships = [ -1, -1, -1, -1, -1, -1 ];
 			if (!fleetObj) return;
 			fleet.active = true;
 			var shipObjArr = [];
@@ -465,16 +430,16 @@
 			// simulate ShipManager
 			fleet.ShipManager = {
 				get: function(ind) {
-					return shipObjArr[ind-1];
+					return shipObjArr[ind-1] || new KC3Ship();
 				}
 			};
 
 			// fill in instance of Ships
 			$.each( fleetObj.ships, function(ind,shipObj) {
+				if (!shipObj) return;
 				var ship = new KC3Ship();
 				shipObjArr.push( ship );
-				// falsy value -> done
-				if (!shipObj) return;
+				fleet.ships[ind] = shipObjArr.length;
 
 				var equipmentObjectArr = [];
 				var masterData = KC3Master.ship( shipObj.id );
@@ -482,21 +447,27 @@
 				ship.masterId = shipObj.id;
 				ship.level = shipObj.level;
 				// calculate naked LoS
-				ship.ls[0] = ship.estimateNakedLoS() + ship.equipmentTotalLoS();
+				ship.ls[0] = shipObj.ls || (ship.estimateNakedLoS() + ship.equipmentTotalLoS());
 				ship.lk[0] = shipObj.luck;
-				ship.items = [1,2,3,4];
+				ship.fp[0] = shipObj.fp || 0;
+				ship.tp[0] = shipObj.tp || 0;
+				ship.items = [-1,-1,-1,-1];
 				ship.slots = masterData.api_maxeq;
-				ship.ex_item = 5;
+				ship.ex_item = 0;
 				ship.GearManager = {
 					get: function(ind) {
-						return equipmentObjectArr[ind-1];
+						return equipmentObjectArr[ind-1] || new KC3Gear();
 					}
 				};
 
 				$.each( shipObj.equipments, function(ind,equipment) {
+					if (!equipment) return;
 					var gear = new KC3Gear();
 					equipmentObjectArr.push( gear );
-					if (!equipment) return;
+					if(ind >= 4)
+						ship.ex_item = equipmentObjectArr.length;
+					else
+						ship.items[ind] = equipmentObjectArr.length;
 					gear.masterId = equipment.id;
 					gear.itemId = ship.items[ind];
 					gear.stars = equipment.improve ? equipment.improve : 0;
@@ -551,6 +522,9 @@
 						rid: ship.rosterId,
 						level: ship.level,
 						luck: ship.lk[0],
+						ls: ship.ls[0],
+						fp: ship.fp[0],
+						tp: ship.tp[0],
 						equipments: convertEquipmentsOf(ship)
 					};
 					fleetObjShips.push( shipObj );

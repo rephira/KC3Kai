@@ -8,6 +8,8 @@
 		
 		player: {},
 		statistics: false,
+		newsfeed: {},
+		showRawNewsfeed: false,
 		
 		/* INIT
 		Prepares static data needed
@@ -20,19 +22,17 @@
 		Prepares latest player data
 		---------------------------------*/
 		reload :function(){
-			// Check for player statstics
-			if(typeof localStorage.player != "undefined"){
-				this.player = JSON.parse(localStorage.player);
-			}else{
-				this.player = {};
-			}
-			
+			ConfigManager.load();
+			// Check for player HQ info
+			PlayerManager.hq.load();
 			// Check for player statstics
 			if(typeof localStorage.statistics != "undefined"){
 				this.statistics = JSON.parse(localStorage.statistics);
 			}else{
 				this.statistics = false;
 			}
+			// Check for player news feed
+			this.newsfeed = JSON.parse(localStorage.playerNewsFeed || "{}");
 		},
 		
 		/* EXECUTE
@@ -45,6 +45,7 @@
 			if(!ConfigManager.dismissed_hints.homepage_hints){
 				$(".homepage_hints").show();
 				$(".homepage_hints").on("click", function(e){
+					ConfigManager.loadIfNecessary();
 					ConfigManager.dismissed_hints.homepage_hints = true;
 					ConfigManager.save();
 					$(".homepage_hints").fadeOut();
@@ -90,6 +91,51 @@
 				$(".stat_exped .stat_rate .stat_value").html(this.statistics.exped.rate+"%");
 				$(".stat_exped .stat_success .stat_value").html(this.statistics.exped.success);
 				$(".stat_exped .stat_total .stat_value").html(this.statistics.exped.total);
+			}
+			
+			// Show news feed
+			this.refreshNewsfeed(this.showRawNewsfeed);
+			// Toggle news feed translation
+			$("#translate_newsfeed").on("click", function(){
+				self.showRawNewsfeed = !self.showRawNewsfeed;
+				self.refreshNewsfeed(self.showRawNewsfeed);
+				return false;
+			});
+			
+			// Fix ledger data of IndexedDB, current:
+			// 0: LBAS type, 1: Consumables empty useitem
+			// Should be reserved until next several releases when most users have their fixed data
+			if(!localStorage.fixed_ledger_db){
+				KC3Database.get_lodger_data(Range(0,Infinity,0,1),
+				function(ld){
+					ld.forEach(function(d){
+						if(d.type === "sortie0" || d.type === "lbas"){
+							KC3Database.con.navaloverall.where("id").equals(d.id).modify(function(r){r.type="lbas6";});
+						}
+					});
+				});
+				delete localStorage.fixed_lbas_ledger;
+				localStorage.fixed_ledger_db = 1;
+				console.info("Ledger data of LBAS have been fixed");
+			} else if(localStorage.fixed_ledger_db == 1){
+				// Fix "hq": "0"
+				KC3Database.con.useitem.where("hq").equals("0").modify(function(mr){mr.hq = PlayerManager.hq.id;});
+				// Fix undefined consumables via using values of previous hour
+				KC3Database.get_useitem(null, function(rs){
+					var i,j,r,rp;
+					for(i in rs){
+						r = rs[i];
+						for(j=i-1; j>0; j--){ rp = rs[j];
+							if(typeof rp.torch !== "undefined") break;
+						}
+						if(typeof r.torch === "undefined" && typeof rp.torch !== "undefined"){
+							rp.id = r.id; rp.hour = r.hour;
+							KC3Database.con.useitem.put(rp);
+						}
+					}
+				});
+				localStorage.fixed_ledger_db = 2;
+				console.info("Ledger data of Consumables have been fixed");
 			}
 			
 			// Export all data
@@ -261,7 +307,7 @@
 							].join(",")+String.fromCharCode(13);
 						});
 						
-						var filename = self.makeFilename("LSC", "csv");
+						var filename = self.makeFilename("Crafting", "csv");
 						self.saveFile(filename, exportData, "text/csv");
 					});
 			});
@@ -308,6 +354,21 @@
 				});
 			});
 			
+			// Reset Dismissed messages
+			$(".tab_profile .clear_dismissed").on("click", function(event){
+				// These variables may be moved into ConfigManager
+				delete localStorage.read_api_notice;
+				delete localStorage.read_api_notice_55;
+				delete localStorage.read_dmm_notice_55;
+				delete localStorage.repotedQuests;
+				ConfigManager.load();
+				ConfigManager.dismissed_hints = {};
+				ConfigManager.save();
+				// For debugging or special case
+				delete localStorage.fixed_lbas_ledger;
+				delete localStorage.fixed_ledger_db;
+			});
+			
 			// Clear transient properties
 			$(".tab_profile .clear_fcf").on("click", function(event){
 				if(!confirm("Have you closed the game?\nThis fix won't work if you haven't closed the game."))
@@ -340,6 +401,65 @@
 					});
 				});
 			});
+		},
+		
+		refreshNewsfeed: function(showRawNewsfeed){
+			var self = this;
+			if(this.newsfeed && this.newsfeed.time){
+				this.newsfeed.log.forEach(function(log, i){
+					// we are using the same timestamp for making it look like a proper log,
+					// as for now there's no timestamp from KCAPI,
+					// perhaps this is the best we can do.
+					// see some discussions at https://github.com/KC3Kai/KC3Kai/issues/1782
+					self.showFeedItem(i, self.newsfeed.time, log, !!showRawNewsfeed);
+				});
+				$(".newsfeed").show();
+			} else {
+				$(".newsfeed").hide();
+			}
+		},
+		
+		showFeedItem: function(index, time, log, showRawNewsfeed){
+			var isRaw = !!showRawNewsfeed || ConfigManager.language == "jp";
+			var selector = ".newsfeed .feed_item_{0}".format(index + 1);
+			$(selector + " .time").text(new Date(time).format("mm/dd HH:MM"));
+			switch(log.api_type){
+			case "1":
+				$(selector + " .colorbox").css("background", "#ffcc00");
+				$(selector + " .feed_text").html(isRaw ? log.api_message : KC3Meta.term("NewsfeedRepair"));
+				break;
+			case "2":
+				$(selector + " .colorbox").css("background", "#996600");
+				$(selector + " .feed_text").html(isRaw ? log.api_message : KC3Meta.term("NewsfeedConstrct"));
+				break;
+			case "3":
+				$(selector + " .colorbox").css("background", "#ace");
+				$(selector + " .feed_text").html(isRaw ? log.api_message : KC3Meta.term("NewsfeedExped"));
+				break;
+			case "5":
+				$(selector + " .colorbox").css("background", "#98e75f");
+				var opponent = log.api_message.substring(1, log.api_message.indexOf("」"));
+				if(log.api_message.indexOf("勝利") > -1){
+					$(selector + " .feed_text").html(isRaw ? log.api_message : KC3Meta.term("NewsfeedPvPWin").format(opponent));
+				} else if(log.api_message.indexOf("敗北") > -1){
+					$(selector + " .feed_text").html(isRaw ? log.api_message : KC3Meta.term("NewsfeedPvPLose").format(opponent));
+				} else {
+					$(selector + " .feed_text").html(isRaw ? log.api_message : KC3Meta.term("NewsfeedUnknown").format(log.api_type, log.api_message) );
+				}
+				break;
+			case "7":
+				$(selector + " .colorbox").css("background", "#d75048");
+				$(selector + " .feed_text").html(isRaw ? log.api_message : KC3Meta.term("NewsfeedUnlockMap"));
+				break;
+			case "11":
+				$(selector + " .colorbox").css("background", "#9999ff");
+				$(selector + " .feed_text").html(isRaw ? log.api_message : KC3Meta.term("NewsfeedUpdateLib"));
+				break;
+			default:
+				$(selector + " .colorbox").css("background", "#ccc");
+				$(selector + " .feed_text").html(isRaw ? log.api_message : KC3Meta.term("NewsfeedUnknown").format(log.api_type, log.api_message) );
+				break;
+			}
 		},
 		
 		makeFilename: function(type, ext){

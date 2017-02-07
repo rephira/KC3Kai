@@ -12,6 +12,8 @@ Saves and loads significant data for future use
 		available: false,
 
 		_raw: {},
+		_abyssalShips: {},
+		_seasonalShips: {},
 
 		init: function( raw ){
 			this.load();
@@ -84,15 +86,58 @@ Saves and loads significant data for future use
 			}
 		},
 
+		loadAbyssalShips: function(repo) {
+			var shipJson = $.ajax({
+				url : repo + "abyssal_stats.json",
+				async: false
+			}).responseText;
+			try {
+				this._abyssalShips = JSON.parse(shipJson) || {};
+			} catch(e) {
+			}
+		},
+
+		loadSeasonalShips: function(repo) {
+			var shipJson = $.ajax({
+				url : repo + "seasonal_mstship.json",
+				async: false
+			}).responseText;
+			try {
+				this._seasonalShips = JSON.parse(shipJson) || {};
+			} catch(e) {
+			}
+		},
+
 		/* Data Access
 		-------------------------------------*/
 		ship :function(id){
 			return !this.available ? false : this._raw.ship[id] || false;
 		},
 
-
-		all_ships :function(){
-			return this._raw.ship || {};
+		all_ships :function(withAbyssals, withSeasonals){
+			var id, ss, as;
+			var ships = $.extend(this._raw.ship, {});
+			if(!!withAbyssals && Object.keys(this._abyssalShips).length > 0){
+				for(id in this._abyssalShips){
+					ss = ships[id];
+					as = this._abyssalShips[id];
+					if(!!ss && !!as){
+						for(var k in as){
+							if(!ss.hasOwnProperty(k))
+								ss[k] = as[k];
+						}
+					}
+				}
+			}
+			if(!!withSeasonals && Object.keys(this._seasonalShips).length > 0){
+				for(id in this._seasonalShips){
+					ss = ships[id];
+					if(!ss) { ships[id] = this._seasonalShips[id]; }
+				}
+				// Apply a patch for Mikuma typo of KC devs
+				ships[882] = this._seasonalShips[882];
+			}
+			return ships;
 		},
 
 		new_ships :function(){
@@ -133,6 +178,26 @@ Saves and loads significant data for future use
 		stype :function(id){
 			return !this.available ? false : this._raw.stype[id] || false;
 		},
+
+		slotitem_equiptype :function(id){
+			return !this.available ? false : this._raw.slotitem_equiptype[id] || false;
+		},
+
+		useitem :function(id){
+			return !this.available ? false : this._raw.useitem[id] || false;
+		},
+
+		all_useitems :function(){
+			return this._raw.useitem || {};
+		},
+
+		abyssalShip :function(id, isMasterMerged){
+			var master = !!isMasterMerged && id > 500 && this.ship(id) || {};
+			return Object.keys(master).length === 0 &&
+				(Object.keys(this._abyssalShips).length === 0 || !this._abyssalShips[id]) ?
+				false : $.extend(master, this._abyssalShips[id]);
+		},
+
 		/* Save to localStorage
 		-------------------------------------*/
 		save :function(){

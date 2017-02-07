@@ -51,7 +51,8 @@
 		dataType       = [
 			// Apply grouping
 			['sortie','pvp'   ,'exped' ,'quest' ,'akashi' ,'regen'  ,'useitem'],
-			['crship','critem','dsship','dsitem','remodel','rmditem','overall']
+			['crship','critem','dsship','dsitem','remodel','rmditem','lbas'   ],
+			['overall']
 		],
 		dataScale      = [
 			1.0, 4.0, 2.5, 2.0, 2.5,25.0, 3.0,
@@ -490,6 +491,10 @@
 			var
 				self = this,
 				mdb  = localStorage.getObject('maps');
+			
+			if (typeof mdb == "undefined" || mdb === null) {
+				return false;
+			}
 			
 			// Refresh Map Data Buffer
 			$.each(mapBuffer,function(k,v){ delete mapBuffer[k]; });
@@ -1266,12 +1271,13 @@
 					})
 					.on('click',function(){
 						$('button,input,select,option',baseContext).prop('disabled',true);
-						
+						$(".loading").show();
 						var time = Date.now();
 						self.resetBuffer();
 						$(".filterGroup",baseContext).trigger('refresh');
 						$(this).trigger('refresh');
 						time = Date.now() - time;
+						$(".loading").hide();
 						//console.info("Refresh done in",time,"msec");
 					});
 		},

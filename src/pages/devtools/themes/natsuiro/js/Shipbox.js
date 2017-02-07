@@ -25,7 +25,7 @@ KC3改 Ship Box for Natsuiro theme
 	---------------------------------------------------*/
 	KC3NatsuiroShipbox.prototype.commonElements = function( rosterId ){
 		var leftPad = function(num){return ("   "+num).slice(-3);};
-		var tooltip = "{0}: {1}\n".format(this.shipData.masterId, KC3Meta.shipName(this.shipData.master().api_yomi));
+		var tooltip = "{0}: {1}\n".format(this.shipData.masterId, KC3Meta.shipReadingName(this.shipData.master().api_yomi));
 		tooltip += "{0}: {1} \t".format(KC3Meta.term("ShipArmor"), leftPad(this.shipData.ar[0]));
 		tooltip += "{0}: {1} \n".format(KC3Meta.term("ShipFire"), leftPad(this.shipData.fp[0]));
 		tooltip += "{0}: {1} \t".format(KC3Meta.term("ShipEvasion"), leftPad(this.shipData.ev[0]));
@@ -33,7 +33,49 @@ KC3改 Ship Box for Natsuiro theme
 		tooltip += "{0}: {1} \t".format(KC3Meta.term("ShipAsw"), leftPad(this.shipData.as[0]));
 		tooltip += "{0}: {1} \n".format(KC3Meta.term("ShipAntiAir"), leftPad(this.shipData.aa[0]));
 		tooltip += "{0}: {1} \t".format(KC3Meta.term("ShipLos"), leftPad(this.shipData.ls[0]));
-		tooltip += "{0}: {1} ".format(KC3Meta.term("ShipLuck"), leftPad(this.shipData.lk[0]));
+		tooltip += "{0}: {1} \n".format(KC3Meta.term("ShipLuck"), leftPad(this.shipData.lk[0]));
+		tooltip += "{0}: {1} \t".format(KC3Meta.term("ShipSpeed"), this.shipData.speedName());
+		tooltip += "{0}: {1} ".format(KC3Meta.term("ShipLength"), this.shipData.rangeName());
+		
+		tooltip += "\n" + KC3Meta.term("ShipAAAdjusted")
+			.format( this.shipData.adjustedAntiAir() ) ;
+		tooltip += "\n" + KC3Meta.term("ShipAAShotdownRate")
+			.format( Math.qckInt("floor", this.shipData.proportionalShotdownRate() * 100, 1) );
+		var fixedShotdownRange = this.shipData.fixedShotdownRange(ConfigManager.aaFormation);
+		var fleetPossibleAaci = fixedShotdownRange[2];
+		if(fleetPossibleAaci > 0){
+			tooltip += "\n" + KC3Meta.term("ShipAAFixedShotdown")
+				.format( "{0}~{1} (x{2})".
+					format(fixedShotdownRange[0], fixedShotdownRange[1],
+						AntiAir.AACITable[fleetPossibleAaci].modifier)
+				);
+		} else {
+			tooltip += "\n" + KC3Meta.term("ShipAAFixedShotdown")
+				.format( fixedShotdownRange[0] );
+		}
+		var maxAaciParams = this.shipData.maxAaciShotdownBonuses();
+		if(maxAaciParams[0] > 0){
+			tooltip += "\n" + KC3Meta.term("ShipAACIMaxBonus")
+				.format( "+{0} (x{1})".format(maxAaciParams[1], maxAaciParams[2]) );
+		} else {
+			tooltip += "\n" + KC3Meta.term("ShipAACIMaxBonus").format( KC3Meta.term("None") );
+		}
+		tooltip += "\n" + KC3Meta.term("ShipAAImgEnemySlot").format( ConfigManager.imaginaryEnemySlot );
+		var propShotdown = this.shipData.proportionalShotdown(ConfigManager.imaginaryEnemySlot);
+		var aaciFixedShotdown = fleetPossibleAaci > 0 ? AntiAir.AACITable[fleetPossibleAaci].fixed : 0;
+		tooltip += "\n" + KC3Meta.term("ShipAAShotdownPred").format(
+			"-{0} / -{1} / -{2} / -{3}".format(
+				// Both succeeded
+				propShotdown + fixedShotdownRange[1] + aaciFixedShotdown + 1,
+				// Proportional succeeded only
+				propShotdown + aaciFixedShotdown + 1,
+				// Fixed succeeded only
+				fixedShotdownRange[1] + aaciFixedShotdown + 1,
+				// Both failed
+				aaciFixedShotdown + 1
+			)
+		);
+		
 		$(".ship_img img", this.element).attr("src", KC3Meta.shipIcon(this.shipData.masterId))
 			.attr("title", tooltip);
 		/*
@@ -58,6 +100,7 @@ KC3改 Ship Box for Natsuiro theme
 		var myExItem = this.shipData.exItem();
 		if( myExItem && (myExItem.masterId > 0)){
 			$(".ex_item img", this.element).attr("src", "../../../../assets/img/items/"+myExItem.master().api_type[3]+".png");
+			$(".ex_item img", this.element).attr("title", myExItem.name());
 			if (myExItem.masterId == 43) {
 				$(".ex_item", this.element).addClass("goddess");
 			} else {
@@ -105,7 +148,11 @@ KC3改 Ship Box for Natsuiro theme
 		$(".ship_bars", this.element).attr("title",
 			KC3Meta.term("PanelCombinedShipBarsHint")
 			.format(this.shipData.exp[1], Math.ceil(this.fuelPercent*100), Math.ceil(this.ammoPercent*100))
-			+ "\n" + KC3Meta.term("PanelResupplyCosts").format(resupplyCost.fuel, resupplyCost.ammo, resupplyCost.bauxite)
+			+ "\n" + KC3Meta.term("PanelResupplyCosts").format(
+				"+{0} \u27A4{1}".format(resupplyCost.fuel, this.shipData.master().api_fuel_max),
+				"+{0} \u27A4{1}".format(resupplyCost.ammo, this.shipData.master().api_bull_max),
+				resupplyCost.bauxite
+			)
 		);
 		
 		if(!this.showCombinedFleetBars){
@@ -144,11 +191,16 @@ KC3改 Ship Box for Natsuiro theme
 		if(this.fuelPercent<1 || this.ammoPercent<1){
 			var resupplyCost = this.shipData.calcResupplyCost(-1, -1, true);
 			$(".ship_supply", this.element).attr("title",
-				KC3Meta.term("PanelResupplyCosts")
-				.format(resupplyCost.fuel, resupplyCost.ammo, resupplyCost.bauxite)
+				KC3Meta.term("PanelResupplyCosts").format(
+					"+{0} \u27A4{1}".format(resupplyCost.fuel, this.shipData.master().api_fuel_max),
+					"+{0} \u27A4{1}".format(resupplyCost.ammo, this.shipData.master().api_bull_max),
+					resupplyCost.bauxite
+				)
 			);
 		} else {
-			$(".ship_supply", this.element).attr("title", "");
+			$(".ship_supply", this.element).attr("title",
+				"\u27A4{0}\n\u27A4{1}".format(this.shipData.master().api_fuel_max, this.shipData.master().api_bull_max)
+			);
 		}
 
 		this.showEquipment(0);
@@ -326,7 +378,7 @@ KC3改 Ship Box for Natsuiro theme
 				$(".ship_gear_"+(slot+1)+" .ship_gear_icon img", this.element).attr("src",
 					"../../../../assets/img/items/"+thisGear.master().api_type[3]+".png");
 				$(".ship_gear_"+(slot+1), this.element).addClass("equipped");
-				$(".ship_gear_"+(slot+1), this.element).attr("title", thisGear.name());
+				$(".ship_gear_"+(slot+1)+" .ship_gear_icon", this.element).attr("title", thisGear.name());
 				
 				if (thisGear.masterId == 43) {
 					$(".ship_gear_"+(slot+1)+" .ship_gear_icon", this.element).addClass("goddess");
@@ -362,9 +414,28 @@ KC3改 Ship Box for Natsuiro theme
 			
 			if(this.shipData.slots[ slot ] > 0 ||
 				(thisGear && KC3GearManager.carrierBasedAircraftType3Ids.indexOf(thisGear.master().api_type[3])>-1) ){
-				$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).text( this.shipData.slots[ slot ] );
+				var slotCurr = this.shipData.slots[slot];
+				$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).text( slotCurr );
+				var slotMax = this.shipData.master().api_maxeq[slot];
+				if(slotCurr < slotMax){
+					$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).attr("title",
+						"{0} /{1}".format(slotCurr, slotMax) );
+				}
+				var slotPercent = slotCurr / (slotMax || 1);
+				if(slotPercent <= 0){
+					$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).css("color", "#999");
+				} else if(slotPercent <= 0.25){
+					$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).css("color", "#f00");
+				} else if(slotPercent <= 0.50){
+					$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).css("color", "#f90");
+				} else if(slotPercent <= 0.75){
+					$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).css("color", "#ff0");
+				} else {
+					$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).css("color", "");
+				}
 			}else{
 				$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).text("");
+				$(".ship_gear_"+(slot+1)+" .ship_gear_slot", this.element).css("color", "");
 			}
 		}else{
 			$(".ship_gear_"+(slot+1)+" .ship_gear_icon", this.element).hide();

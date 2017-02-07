@@ -16,26 +16,20 @@
 .tab_maps .world_list {
 	width:700px;
 	height:31px;
-	background:#f0f5ff;
-	border-bottom:1px solid #369;
 }
 .tab_maps .world_box {
 	width:100px;
 	height:30px;
 	float:left;
 	line-height:28px;
-	border:1px outset #ace;
 	text-align:center;
 	font-weight:bold;
 	font-size:14px;
-	background: -webkit-linear-gradient(top, rgba(206,245,255,1) 0%, rgba(111,226,255,1) 100%);
 }
 .tab_maps .world_box.active {
 	height:31px;
-	border:1px inset #FFCC00;
 	line-height:29px;
 	border-bottom:0px none;
-	background: -webkit-linear-gradient(top, rgba(255,255,255,1) 0%, rgba(240,248,255,1) 100%);
 }
 
 /* MAP LIST
@@ -43,22 +37,14 @@
 .tab_maps .map_list {
 	width:700px;
 	margin:0px 0px 0px 0px;
-	background:#f0f8ff;
 	padding:5px 10px;
-	border-bottom:1px solid #369;
 }
 .tab_maps .map_box {
 	width:90px;
 	height:56px;
-	background:#cde;
-	border-radius:8px;
 	float:left;
 	padding:5px 0px;
 	margin:0px 7px 0px 0px;
-}
-.tab_maps .map_box.active {
-	border:2px inset #ace;
-	padding-top:4px;
 }
 .tab_maps .map_box .map_title {
 	width:80px;
@@ -68,7 +54,6 @@
 	font-weight:bold;
 	font-size:16px;
 	text-align:center;
-	color:#006699;
 }
 .tab_maps .map_box .map_hp_txt {
 	width:80px;
@@ -81,16 +66,12 @@
 .tab_maps .map_box .map_gauge {
 	width:80px;
 	height:10px;
-	background:#555;
-	border-radius:5px;
-	border:1px solid #000;
 	margin:0px auto;
 	overflow:hidden;
 }
 .tab_maps .map_box .map_bar {
 	width:80px;
 	height:10px;
-	background:#f00;
 }
 
 /* Map without gauge (All maps) */
@@ -106,20 +87,8 @@
 }
 
 /* Map is Cleared */
-.tab_maps .map_box.cleared .map_gauge {
-	background:#0f0;
-	border:1px solid #393;
-}
 .tab_maps .map_box.cleared .map_bar {
 	display:none;
-}
-
-/* Map is NOT Cleared */
-.tab_maps .map_box.notcleared {
-	background:#fdd;
-}
-.tab_maps .map_box.active.notcleared {
-	border:2px inset #FAA;
 }
 
 /* Map not cleared and no gauge */
@@ -131,17 +100,8 @@
 	display:none;
 }
 
-/* PAGE LIST
----------------------------------*/
-.tab_maps .page_list {
-	width:700px;
-	margin:0px 0px 0px 0px;
-	background:#f0f5ff;
-	border-bottom:1px solid #369;
-	padding:5px 5px 0px;
-}
 .tab_maps .page_list .pagination {
-	margin:0px;
+	margin:5px 0px 0px 0px;
 }
 
 /* SORTIE LIST
@@ -154,16 +114,12 @@
 .tab_maps .sortie_list .sortie_box {
 	width:680px;
 	line-height:40px;
-	background:#def;
-	border-radius:10px;
-	margin:0px 0px 5px 0px;
 	padding:5px;
 }
 /* Sortie Info: RECORD */
 .tab_maps .sortie_list .sortie_info {
 	width:670px;
 	height:30px;
-	/*background:#ffc;*/
 }
 .tab_maps .sortie_list .sortie_column {
 	float:left;
@@ -172,7 +128,6 @@
 .tab_maps .sortie_list .sortie_record {
 	width:50px;
 	margin:0px 10px 0px 0px;
-	/*background:#ffc;*/
 }
 .tab_maps .sortie_list .sortie_id {
 	width:50px;
@@ -188,7 +143,6 @@
 	line-height:14px;
 	font-size:12px;
 	text-align:center;
-	color:#3399cc;
 }
 
 /* Sortie Info: MAP */
@@ -199,8 +153,6 @@
 	text-align:center;
 	font-size:16px;
 	font-weight:bold;
-	background:#ffc;
-	border-radius:8px;
 }
 
 /* Sortie Info: FLEET */
@@ -214,7 +166,6 @@
 	height:30px;
 	line-height:30px;
 	margin:0px 5px 0px 0px;
-	background:#fff;
 	border-radius:15px;
 	float:left;
 	overflow:hidden;
@@ -243,7 +194,6 @@
 	float:left;
 	text-align:center;
 	margin:0px 5px 0px 0px;
-	background:#fff;
 	color:#fff;
 	border-radius:15px;
 	font-size:14px;
@@ -256,7 +206,6 @@
 /* Sortie Info: TOGGLES */
 .tab_maps .sortie_list .sortie_toggles {
 	width:150px;
-	/*background:#ffc;*/
 }
 .tab_maps .sortie_list .sortie_toggle {
 	width:25px;
@@ -264,22 +213,8 @@
 	line-height:18px;
 	float:left;
 	text-align:center;
-	/*padding:0px 3px;*/
 	margin:5px 5px 0px 0px;
-	background:#ace;
-	color:#fff;
-	border-radius:5px;
 	font-size:12px;
-	border:1px outset #9bd;
-}
-.tab_maps .sortie_list .sortie_toggle.active {
-	line-height:16px;
-	border-width:2px;
-	border-style:inset;
-}
-.tab_maps .sortie_list .sortie_toggle_in {
-	background:#cde;
-	color:#000;
 }
 
 /* Sortie Roster */
@@ -292,8 +227,6 @@
 	width:163px;
 	height:92px;
 	margin:0px 2px 0px 2px;
-	background:#fff;
-	border-radius:8px;
 	float:left;
 	overflow:hidden;
 }
@@ -305,16 +238,13 @@
 	width:163px;
 	height:20px;
 	line-height:20px;
-	background:#ffc;
 	text-align:center;
 	font-size:11px;
 	font-weight:bold;
-	border-bottom:1px solid #def;
 }
 .tab_maps .sortie_list .rfleet_body {
 	width:163px;
 	height:72px;
-	/*background:#ffc;*/
 }
 
 .tab_maps .sortie_list .rfleet_ship {
@@ -323,7 +253,6 @@
 	margin:3px 1px 0px 0px;
 	float:left;
 	overflow:hidden;
-	/*background:#ccf;*/
 }
 .tab_maps .sortie_list .rfleet_pic {
 	width:20px;
@@ -331,7 +260,6 @@
 	line-height:20px;
 	border-radius:10px;
 	overflow:hidden;
-	/*background:#ccc;*/
 	float:left;
 	margin:0px 3px 0px 0px;
 }
@@ -346,8 +274,9 @@
 	line-height:10px;
 	float:left;
 	font-size:10px;
+	transform:scale(0.85);
+	transform-origin:left;
 	overflow:hidden;
-	/*background:#fcc;*/
 }
 .tab_maps .sortie_list .rfleet_level {
 	width:55px;
@@ -355,8 +284,9 @@
 	line-height:10px;
 	float:left;
 	font-size:10px;
+	transform:scale(0.75);
+	transform-origin:left;
 	overflow:hidden;
-	/*background:#cfc;*/
 }
 .tab_maps .sortie_list .rfleet_equips {
 	width:55px;
@@ -372,17 +302,14 @@
 
 /* Sortie Nodes */
 .tab_maps .sortie_list .sortie_nodes {
-	width:670px;
+	width:675px;
 	margin:5px 0px 2px 0px;
 	display:none;
 }
 .tab_maps .sortie_list .sortie_nodeinfo {
 	width:130px;
-	/*height:207px;*/
 	line-height:20px;
-	margin:0px 3px 0px 2px;
-	background:#fff;
-	border-radius:8px;
+	margin:0px 2px 0px 2px;
 	float:left;
 	overflow:hidden;
 	padding:5px;
@@ -399,6 +326,12 @@
 	border-radius:12px;
 	font-size:12px;
 	font-weight:bold;
+}
+.tab_maps .sortie_list .node_id.nodamage {
+	box-shadow: 0px 0px 2px 2px #8c4;
+}
+.tab_maps .sortie_list .node_id.damaged {
+	box-shadow: 0px 0px 2px 2px #f90;
 }
 
 .tab_maps .sortie_list .node_result {
@@ -423,6 +356,36 @@
 	width:20px;
 	height:20px;
 	vertical-align:top;
+}
+.tab_maps .sortie_list .node_result_box .exped {
+	width:10px;
+	height:11px;
+	line-height:11px;
+	border-radius:6px;
+	margin:9px 0px 0px -1px;
+	position:absolute;
+	font-size:8px;
+	text-align:center;
+	color:#fff;
+	background:#a69de6;
+	overflow:hidden;
+	pointer-events:none;
+	display:none;
+}
+.tab_maps .sortie_list .node_result_box .lbas {
+	width:12px;
+	height:12px;
+	line-height:12px;
+	border-radius:6px;
+	margin:8px 0px 0px 7px;
+	position:absolute;
+	font-size:8px;
+	text-align:center;
+	color:#ff0;
+	background:#5b5;
+	overflow:hidden;
+	pointer-events:none;
+	display:none;
 }
 
 .tab_maps .sortie_list .node_enemy {
@@ -459,6 +422,23 @@
 .tab_maps .sortie_list .node_eship img {
 	width:20px;
 	height:20px;
+	vertical-align:top;
+}
+.tab_maps .sortie_list .node_enemy .boss {
+	border-color:#5ef;
+	box-shadow:0px 0px 1px 1px #5ef;
+}
+.tab_maps .sortie_list .node_enemy .kai {
+	border-color:#2af;
+	box-shadow:0px 0px 1px 1px #2af;
+}
+.tab_maps .sortie_list .node_enemy .flagship {
+	border-color:#fc3;
+	box-shadow:0px 0px 1px 1px #fc3;
+}
+.tab_maps .sortie_list .node_enemy .elite {
+	border-color:#f33;
+	box-shadow:0px 0px 1px 1px #f33;
 }
 
 .tab_maps .sortie_list .node_details {
@@ -490,10 +470,22 @@
 	float:left;
 	font-weight:bold;
 }
+.tab_maps .sortie_list .node_cond_value.best {
+	color:#009900;
+}
+.tab_maps .sortie_list .node_cond_value.better {
+	color:#009900;
+}
 .tab_maps .sortie_list .node_cond_value.good {
 	color:#009900;
 }
 .tab_maps .sortie_list .node_cond_value.bad {
+	color:#f33;
+}
+.tab_maps .sortie_list .node_cond_value.worse {
+	color:#f33;
+}
+.tab_maps .sortie_list .node_cond_value.worst {
 	color:#f33;
 }
 
@@ -501,7 +493,6 @@
 	width:120px;
 	height:55px;
 	margin:5px 0px 0px 0px;
-	/*background:#cfc;*/
 }
 .tab_maps .sortie_list .node_airsides {
 	width:120px;
@@ -559,7 +550,6 @@
 }
 .tab_maps .sortie_list .node_exp {
 	display: inline-block;
-	color: cornflowerblue;
 	text-align: right;
 	width: 48%;
 	font-size: 0.8em;
@@ -567,7 +557,6 @@
 	position:relative;
 }
 .tab_maps .sortie_list .node_exp span {
-	color: black;
 	font-weight: bolder;
 	font-size: 1.25em;
 }
@@ -579,7 +568,6 @@
 	display: block;
 	font-size: 0.8em;
 	text-align: center;
-	color: black;
 }
 .tab_maps .sortie_list .node_exp.hq:before {
 	content: "HQ EXP";
