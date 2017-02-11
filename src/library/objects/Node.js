@@ -326,6 +326,11 @@ Used by SortieManager
 		this.ecships = undefined;
 		this.eformation = battleData.api_formation[1];
 		
+		this.elevels = battleData.api_ship_lv.slice(1);
+		if(isEnemyCombined) {
+			this.elevels = this.elevels.concat(battleData.api_ship_lv_combined.slice(1));
+		}
+		
 		this.eParam = battleData.api_eParam;
 		if (typeof battleData.api_eParam_combined != "undefined") {
 			this.eParam = this.eParam.concat(battleData.api_eParam_combined);
@@ -738,6 +743,7 @@ Used by SortieManager
 		var isEnemyCombined = (typeof nightData.api_ship_ke_combined !== "undefined");
 		
 		this.eships = enemyships;
+		this.elevels = nightData.api_ship_lv.slice(1);
 		this.eformation = this.eformation || nightData.api_formation[1];
 		this.eParam = nightData.api_eParam;
 		this.eKyouka = nightData.api_eKyouka || [-1,-1,-1,-1,-1,-1];
@@ -1161,12 +1167,13 @@ Used by SortieManager
 			//var enemySS = [530, 532, 534, 531, 533, 535, 570, 571, 572];
 			//var enemyAP = [513, 526, 558];
 			var eshipCnt = (this.ecships || []).length || 6;
+			var sunkApCnt = 0;
 			for(var i = 0; i < eshipCnt; i++) {
 				if (this.enemySunk[i]) {
 					var enemyShip = KC3Master.ship( (this.ecships || this.eships)[i] );
 					if (!enemyShip) {
 						console.log("Cannot find enemy " + this.eships[i]);
-					} else if (this.eships[i] < 500) {
+					} else if (this.eships[i] <= 500) {
 						console.log("Enemy ship is not Abyssal!");
 					} else {
 						switch(enemyShip.api_stype) {
@@ -1184,17 +1191,24 @@ Used by SortieManager
 								break;
 							case 15:	// 15 = AP
 								console.log("You sunk a AP");
-								KC3QuestManager.get(218).increment();
-								KC3QuestManager.get(212).increment();
+								sunkApCnt += 1;
+								if (! ConfigManager.spCounterAdjust ) {
+									KC3QuestManager.get(218).increment();
+									KC3QuestManager.get(212).increment();
+								}
 								KC3QuestManager.get(213).increment();
 								KC3QuestManager.get(221).increment();
 								break;
 						}
 					}
-					
+
 				}
 			}
-			
+			if(ConfigManager.spCounterAdjust && sunkApCnt > 0){
+				// Bd6 must inc first than Bd5 as its id smaller :)
+				KC3QuestManager.get(212).increment(0, sunkApCnt);
+				KC3QuestManager.get(218).increment(0, sunkApCnt);
+			}
 			// Save enemy deck name for encounter
 			var name = resultData.api_enemy_info.api_deck_name;
 			if(KC3SortieManager.onSortie > 0 && !!name){
@@ -1287,7 +1301,10 @@ Used by SortieManager
 			});
 			if(!!supportTips && !!lbasTips) { supportTips += "\n"; }
 		}
-		return supportTips + lbasTips;
+		return supportTips + lbasTips === "" ? "" : $("<p></p>")
+			.css("font-size", "11px")
+			.text(supportTips + lbasTips)
+			.prop("outerHTML");
 	};
 	
 	/**

@@ -27,6 +27,7 @@ Retreives when needed to apply on components
 				devOnlyPages		: false,
 				forceDMMLogin		: false,
 				apiRecorder			: false,
+				spCounterAdjust     : true,
 				updateNotification	: 2,
 
 				showCatBombs		: true,
@@ -138,6 +139,7 @@ Retreives when needed to apply on components
 				alert_supply 		: 3,
 				alert_supply_exped 	:true,
 				alert_idle_counter	: 1,
+				alert_idle_start	: 0,
 				
 				alert_taiha			: false,
 				alert_taiha_blur	: false,
@@ -187,6 +189,7 @@ Retreives when needed to apply on components
 				pan_bg_size			: "cover",
 				pan_bg_position		: "top center",
 				pan_opacity 		: 100,
+				pan_box_bcolor 		: "rgba(100, 100, 100, 0.618)",
 
 				sr_theme			: "legacy"
 			};
